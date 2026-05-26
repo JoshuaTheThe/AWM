@@ -12,6 +12,14 @@
 #define AWM_DEFAULT ((long)-1)
 #define AWM_DEFAULT_VT (1)
 
+typedef enum
+{
+        AWM_CUR_NORMAL,
+        AWM_CUR_HELP,
+        AWM_CUR_AWAIT,
+        AWM_CUR_MOVE,
+} AWM_CursorType;
+
 typedef struct
 {
         struct fb_var_screeninfo vinfo;
@@ -28,6 +36,7 @@ typedef struct
         struct termios orig_termios_mouse;
         AWM_Surface    Surface;
         bool           Running;
+        AWM_CursorType Cursor;
 } AWM_Display;
 
 typedef enum
@@ -41,7 +50,10 @@ typedef enum
 typedef struct
 {
         AWM_EventKind Kind;
-        union {} as;
+        union
+        {
+                char Key;
+        } as;
 } AWM_Event;
 
 AWM_Display *AWM_OpenDisplay(const char *const Path, const char *const Mouse, const char *const Keyboard, long Width, long Height, long Bpp);

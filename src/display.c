@@ -111,7 +111,8 @@ bool AWM_PollEvent(AWM_Event *Event, AWM_Display *Display)
                                 return true;
                         }
                         
-                        Event->Kind = AWM_EV_KEY;
+                        Event->Kind   = AWM_EV_KEY;
+                        Event->as.Key = buf[i];
                         return true;
                 }
         }
