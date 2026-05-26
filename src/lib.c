@@ -32,6 +32,7 @@ void AWM_Panic(size_t code)
 
 int AWM_Open(const char *const Path, size_t Flags)
 {
+        if (Path == NULL) return -1;
         int fd = open(Path, Flags);
         if (fd < 0)
                 panic(PANIC_OPEN);

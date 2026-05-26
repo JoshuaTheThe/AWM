@@ -3,8 +3,11 @@
 #define AWM_DISPLAY_H
 
 #include<lib.h>
+#include<linux/kd.h>
+#include<linux/vt.h>
 
 #define AWM_DEFAULT ((long)-1)
+#define AWM_DEFAULT_VT (1)
 
 typedef union __attribute__((__packed__))
 {
@@ -53,20 +56,31 @@ typedef struct
         int         mouse_x;
         int         mouse_y;
         int         mouse_b;
-        int         framefp;
-        int         mousefp;
+        int         framefd;
+        int         mousefd;
+        int         ttyfd;
+        int         stdin_flags;
+        int         old_vt;
         void       *fb;
         void       *back;
+        bool        Running;
 } AWM_Display;
 
+typedef enum
+{
+        AWM_EV_QUIT,
+        AWM_EV_MOUSE_MOVE,
+        AWM_EV_MOUSE_PRESS,
+} AWM_EventKind;
 
 typedef struct
 {
-        void *placeholder;
+        AWM_EventKind Kind;
+        union {} as;
 } AWM_Event;
 
-AWM_Display *AWM_OpenDisplay(const char *const Path, const char *const Mouse, long Width, long Height, long Bpp);
-AWM_Event AWM_PollEvent(AWM_Display *Display);
+AWM_Display *AWM_OpenDisplay(const char *const Path, const char *const Mouse, const char *const Keyboard, long Width, long Height, long Bpp);
+bool AWM_PollEvent(AWM_Event *Event, AWM_Display *Display);
 void AWM_CloseDisplay(AWM_Display *Display);
 void AWM_DrawRect(AWM_Display *Display, AWM_Colour Colour, AWM_Rect Rect);
 void AWM_Present(AWM_Display *Display);
