@@ -243,3 +243,72 @@ AWM_Surface AWM_LoadImage(const char *filename)
         stbi_image_free(data);
         return surface;
 }
+
+static inline float squircle_factor(float x, float y, float radius, float exponent)
+{
+        float nx = x / radius;
+        float ny = y / radius;
+        float value = powf(fabsf(nx), exponent) + powf(fabsf(ny), exponent);
+        return value <= 1.0f ? 1.0f - value : 0.0f;
+}
+
+void AWM_DrawFilledSquircle(AWM_Surface *Surface, AWM_Colour Colour, 
+                            AWM_Rect Rect, float Radius, float Exponent)
+{
+        if (Exponent <= 0) Exponent = 2.5f;
+        
+        int start_x = MAX(Rect.x, 0);
+        int start_y = MAX(Rect.y, 0);
+        int end_x = MIN(Rect.x + Rect.w, Surface->rect.w);
+        int end_y = MIN(Rect.y + Rect.h, Surface->rect.h);
+        
+        float radius = MIN(Radius, MIN(Rect.w / 2.0f, Rect.h / 2.0f));
+        float center_x = Rect.x + Rect.w / 2.0f;
+        float center_y = Rect.y + Rect.h / 2.0f;
+        float rx = Rect.w / 2.0f - radius;
+        float ry = Rect.h / 2.0f - radius;
+        
+        for (int y = start_y; y < end_y; y++)
+        {
+                for (int x = start_x; x < end_x; x++)
+                {
+                        float dx = fabsf(x - center_x) - rx;
+                        float dy = fabsf(y - center_y) - ry;
+                        
+                        if (dx < 0 && dy < 0)
+                        {
+                                AWM_DrawPoint(Surface, Colour, x, y);
+                        }
+                        else if (dx >= 0 && dy >= 0)
+                        {
+                                float alpha = squircle_factor(dx, dy, radius, Exponent);
+                                if (alpha > 0)
+                                {
+                                        AWM_Colour blended = Colour;
+                                        blended.rgba_888.a = (uint8_t)(Colour.rgba_888.a * alpha);
+                                        AWM_DrawPoint(Surface, Colour, x, y);
+                                }
+                        }
+                        else if (dx >= 0)
+                        {
+                                float alpha = 1.0f - (dx / radius);
+                                if (alpha > 0)
+                                {
+                                        AWM_Colour blended = Colour;
+                                        blended.rgba_888.a = (uint8_t)(Colour.rgba_888.a * alpha);
+                                        AWM_DrawPoint(Surface, Colour, x, y);
+                                }
+                        }
+                        else if (dy >= 0)
+                        {
+                                float alpha = 1.0f - (dy / radius);
+                                if (alpha > 0)
+                                {
+                                        AWM_Colour blended = Colour;
+                                        blended.rgba_888.a = (uint8_t)(Colour.rgba_888.a * alpha);
+                                        AWM_DrawPoint(Surface, Colour, x, y);
+                                }
+                        }
+                }
+        }
+}
