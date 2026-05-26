@@ -49,3 +49,14 @@ void AWM_RemoveWindow(AWM_Window *Window)
                 Window->Parent->Child = Window->Next ? Window->Next : Window->Prev;
 }
 
+void AWM_RenderWindow(AWM_Window *Window)
+{
+        AWM_Clear(&Window->Surface);
+        AWM_DrawRect(&Window->Surface, (AWM_Colour){.rgba_888_w=0xffdddddd}, AWM_COPY_DIM(Window->Surface.rect));
+        AWM_DrawRect(&Window->Surface, (AWM_Colour){.rgba_888_w=0xffb0b0b0}, AWM_RECT(Window->Surface.rect.w, AWM_TITLE_H));
+        AWM_DrawLine(&Window->Surface, (AWM_Colour){.rgba_888_w=0xff000000}, 0, 0, Window->Surface.rect.w, 0);
+        AWM_DrawLine(&Window->Surface, (AWM_Colour){.rgba_888_w=0xff000000}, 0, 0, 0, Window->Surface.rect.h);
+        AWM_DrawLine(&Window->Surface, (AWM_Colour){.rgba_888_w=0xff000000}, 0, Window->Surface.rect.h, Window->Surface.rect.w, Window->Surface.rect.h);
+        AWM_DrawLine(&Window->Surface, (AWM_Colour){.rgba_888_w=0xff000000}, Window->Surface.rect.w, 0, Window->Surface.rect.w, Window->Surface.rect.h);
+        AWM_DrawLine(&Window->Surface, (AWM_Colour){.rgba_888_w=0xff000000}, 0, AWM_TITLE_H, Window->Surface.rect.w, AWM_TITLE_H);
+}

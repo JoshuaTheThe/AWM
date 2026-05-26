@@ -4,6 +4,9 @@
 
 #include <lib.h>
 
+#define AWM_COPY_DIM(R) ((AWM_Rect){.x=0,.y=0,.w=R.w,.h=R.h})
+#define AWM_RECT(W,H)   ((AWM_Rect){.x=0,.y=0,.w=W,.h=H})
+#define AWM_RECTXY(X,Y,W,H)   ((AWM_Rect){.x=X,.y=Y,.w=W,.h=H})
 
 typedef union __attribute__((__packed__))
 {
@@ -52,6 +55,7 @@ typedef struct
         size_t   bpp;
 } AWM_Surface;
 
+AWM_Surface AWM_LoadImage(const char *filename);
 AWM_Surface AWM_NewSurface(size_t W,size_t H, size_t Bpp);
 void        AWM_DropSurface(AWM_Surface Surface);
 void        AWM_Present(AWM_Surface *Surface);

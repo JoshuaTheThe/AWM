@@ -14,13 +14,13 @@ override DEFAULT_KCC := cc
 $(eval $(call DEFAULT_VAR,KCC,$(DEFAULT_KCC)))
 override DEFAULT_KLD := cc
 $(eval $(call DEFAULT_VAR,KLD,$(DEFAULT_KLD)))
-override DEFAULT_KCFLAGS := -Wall -Wextra -Wpedantic -g
+override DEFAULT_KCFLAGS := -Wall -Wextra -Wpedantic -O3
 $(eval $(call DEFAULT_VAR,KCFLAGS,$(DEFAULT_KCFLAGS)))
 override DEFAULT_KCPPFLAGS :=
 $(eval $(call DEFAULT_VAR,KCPPFLAGS,$(DEFAULT_KCPPFLAGS)))
 override DEFAULT_KNASMFLAGS :=
 $(eval $(call DEFAULT_VAR,KNASMFLAGS,$(DEFAULT_KNASMFLAGS)))
-override DEFAULT_KLDFLAGS :=  -static
+override DEFAULT_KLDFLAGS :=  -static -lm
 $(eval $(call DEFAULT_VAR,KLDFLAGS,$(DEFAULT_KLDFLAGS)))
 
 override KCFLAGS += \
@@ -30,7 +30,8 @@ override KCFLAGS += \
     -march=native
 override KLDFLAGS += \
     -m64 \
-    -lgcc
+    -lgcc \
+    $(DEFAULT_KLDFLAGS)
 
 override CFILES := $(shell cd src && find -L * -type f -name '*.c' | LC_ALL=C sort)
 override OBJ := $(addprefix obj/,$(CFILES:.c=.c.o) $(ASFILES:.S=.S.o) $(NASMFILES:.asm=.asm.o))
@@ -39,7 +40,7 @@ override HEADER_DEPS := $(addprefix obj/,$(CFILES:.c=.c.d) $(ASFILES:.S=.S.d))
 all: bin/$(OUTPUT)
 bin/$(OUTPUT): $(OBJ)
 	mkdir -p "$$(dirname $@)"
-	cc -o $@ $(OBJ)
+	cc -o $@ $(OBJ) $(KLDFLAGS)
 -include $(HEADER_DEPS)
 obj/%.c.o: src/%.c
 	mkdir -p "$$(dirname $@)"

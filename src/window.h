@@ -9,6 +9,7 @@
 #define AWM_DEFAULT_XY (128)
 #define AWM_DEFAULT_WH (256)
 #define AWM_TITLE_LEN  (256)
+#define AWM_TITLE_H    (16)
 
 typedef enum
 {
