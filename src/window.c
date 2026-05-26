@@ -53,29 +53,38 @@ void AWM_RemoveWindow(AWM_Window *Window)
 
 void AWM_RenderWindow(AWM_Window *Window)
 {
-        float corner_radius = 25.0f;
-        float squircle_exp = 4.0f;
         AWM_Clear(&Window->Surface);
-        AWM_Rect shadow_rect =
+        if (Window->Type == AWM_WND_NORMAL)
         {
-                .x = 2, .y = 2,
-                .w = Window->Surface.rect.w - 2,
-                .h = Window->Surface.rect.h - 2
-        };
+                float corner_radius = 25.0f;
+                float squircle_exp = 4.0f;
+                AWM_Rect shadow_rect =
+                {
+                        .x = 2, .y = 2,
+                        .w = Window->Surface.rect.w - 2,
+                        .h = Window->Surface.rect.h - 2
+                };
 
-        AWM_DrawFilledSquircle(&Window->Surface, 
-                               (AWM_Colour){.rgba_888_w=0x7015151f}, 
-                               shadow_rect, corner_radius, squircle_exp);
-        AWM_Rect content_rect =
+                AWM_DrawFilledSquircle(&Window->Surface, 
+                                       (AWM_Colour){.rgba_888_w=0x7015151f}, 
+                                       shadow_rect, corner_radius, squircle_exp);
+                AWM_Rect content_rect =
+                {
+                        .x = 8, 
+                        .y = AWM_TITLE_H,
+                        .w = Window->Surface.rect.w - 16,
+                        .h = Window->Surface.rect.h - AWM_TITLE_H - 8
+                };
+
+                AWM_DrawRect(&Window->Surface, (AWM_Colour){.rgba_888_w=0x8025252f}, content_rect);
+                AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xfff53130}, 16, 15, 4);
+                AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xfff5f130}, 28, 15, 4);
+                AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xff31f530}, 40, 15, 4);
+        }
+
+        for (AWM_Window *Child = Window->Child; Child; Child = Child->Next)
         {
-                .x = 8, 
-                .y = AWM_TITLE_H,
-                .w = Window->Surface.rect.w - 16,
-                .h = Window->Surface.rect.h - AWM_TITLE_H - 8
-        };
-
-        AWM_DrawRect(&Window->Surface, (AWM_Colour){.rgba_888_w=0x8025252f}, content_rect);
-        AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xfff53130}, 16, 15, 4);
-        AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xfff5f130}, 28, 15, 4);
-        AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xff31f530}, 40, 15, 4);
+                AWM_RenderWindow(Child);
+                AWM_BlitSurface(&Window->Surface, &Child->Surface);
+        }
 }

@@ -7,7 +7,7 @@
 int main(void)
 {
         AWM_Display *Display   = AWM_OpenDisplay("/dev/fb0", "/dev/input/mouse0", "/dev/stdin", AWM_DEFAULT, AWM_DEFAULT, AWM_DEFAULT);
-        AWM_Window  *Window    = AWM_NewWindow("ROOT", AWM_WND_ELEMENT, AWM_DEFAULT_XY, AWM_DEFAULT_XY, AWM_DEFAULT_WH, AWM_DEFAULT_WH, Display->vinfo.bits_per_pixel);
+        AWM_Window  *Window    = AWM_NewWindow("ROOT", AWM_WND_ELEMENT, 0, 0, Display->Surface.rect.w, Display->Surface.rect.h, Display->vinfo.bits_per_pixel);
         AWM_Key     *Config    = AWM_ReadConfig("init.cfg");
         AWM_Surface  Backgr    = AWM_LoadImage(AWM_ConfigFetch(Config, "AWM/background-image")->Value);
         AWM_Surface  Cursor[4] = {
@@ -22,13 +22,20 @@ int main(void)
         int resize_start_w = 0, resize_start_h = 0;
         int is_dragging = 0;
         int is_resizing = 0;
-        
-        AWM_RenderWindow(Window);
-        AWM_Present(&Window->Surface);
         AWM_Present(&Backgr);
         for (size_t i = 0; i < sizeof(Cursor) / sizeof(Cursor[0]); ++i)
                 AWM_Present(&Cursor[i]);
+        
+        for (int i = 0; i < 4; ++i)
+        {
+                AWM_Window *w = AWM_NewWindow("Hello, World!", AWM_WND_NORMAL, i*128, 0, 128, 128, Display->vinfo.bits_per_pixel);
+                AWM_AttachChildWindow(Window, w);
+                AWM_RenderWindow(w);
+                AWM_Present(&w->Surface);
+        }
 
+        AWM_RenderWindow(Window);
+        AWM_Present(&Window->Surface);
         while (Display->Running)
         {
                 AWM_Event Event = {0};
@@ -50,23 +57,24 @@ int main(void)
 
                 if (Display->mouse_b & 0x01)
                 {
-                        AWM_FindFocus(Display, Window);
+                        AWM_FindFocus(Display, Window, Display->mouse_x, Display->mouse_y);
                         if (Display->Focus)
                         {
                                 AWM_RenderWindow(Display->Focus);
+                                AWM_Present(&Display->Focus->Surface);
                         }
                 }
 
                 if (Display->mouse_b & 0x02)
                 {
-                        if (!is_dragging && Display->Focus)
+                        if (!is_dragging && Display->Focus && Display->Focus != Window)
                         {
                                 drag_start_x = Display->mouse_x - Display->Focus->Surface.rect.x;
                                 drag_start_y = Display->mouse_y - Display->Focus->Surface.rect.y;
                                 is_dragging = 1;
                                 Display->Cursor = AWM_CUR_MOVE;
                         }
-                        else if (is_dragging && Display->Focus)
+                        else if (is_dragging && Display->Focus && Display->Focus != Window)
                         {
                                 int new_x = Display->mouse_x - drag_start_x;
                                 int new_y = Display->mouse_y - drag_start_y;
@@ -91,7 +99,7 @@ int main(void)
                 
                 if (Display->mouse_b & 0x04)
                 {
-                        if (!is_resizing && Display->Focus)
+                        if (!is_resizing && Display->Focus && Display->Focus != Window)
                         {
                                 resize_start_x = Display->mouse_x;
                                 resize_start_y = Display->mouse_y;
@@ -100,7 +108,7 @@ int main(void)
                                 is_resizing = 1;
                                 Display->Cursor = AWM_CUR_MOVE;
                         }
-                        else if (is_resizing && Display->Focus)
+                        else if (is_resizing && Display->Focus && Display->Focus != Window)
                         {
                                 int delta_x = Display->mouse_x - resize_start_x;
                                 int delta_y = Display->mouse_y - resize_start_y;
@@ -163,6 +171,8 @@ int main(void)
                                 .w=Cursor[Display->Cursor].rect.w, .h=Cursor[Display->Cursor].rect.h};
                 Cursor[Display->Cursor].rect = Rect;
                 AWM_Clear(&Display->Surface);
+                AWM_RenderWindow(Window);
+                AWM_Present(&Window->Surface);
                 AWM_BlitSurface(&Display->Surface, &Backgr);
                 AWM_BlitSurface(&Display->Surface, &Window->Surface);
                 AWM_BlitSurface(&Display->Surface, &Cursor[Display->Cursor]);

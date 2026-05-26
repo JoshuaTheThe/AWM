@@ -7,6 +7,6 @@
 #include<surface.h>
 #include<lib.h>
 
-void AWM_FindFocus(AWM_Display *Display, AWM_Window *RootWindow);
+void AWM_FindFocus(AWM_Display *Display, AWM_Window *RootWindow, size_t x, size_t y);
 
 #endif
