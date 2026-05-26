@@ -31,6 +31,7 @@ enum
         PANIC_MAP,
         PANIC_UNMAP,
         PANIC_VINFO,
+        PANIC_FILE_NOT_FOUND,
 };
 
 void *AWM_New(size_t sizeof_T);

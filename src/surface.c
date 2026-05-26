@@ -30,8 +30,10 @@ AWM_Surface AWM_NewSurface(size_t W,size_t H, size_t Bpp)
 
 void AWM_DropSurface(AWM_Surface Surface)
 {
-        AWM_Drop(Surface.front, Surface.rect.w * Surface.rect.h * (Surface.bpp >> 3));
-        AWM_Drop(Surface.back,  Surface.rect.w * Surface.rect.h * (Surface.bpp >> 3));
+        if (Surface.front)
+                AWM_Drop(Surface.front, Surface.rect.w * Surface.rect.h * (Surface.bpp >> 3));
+        if (Surface.back)
+                AWM_Drop(Surface.back,  Surface.rect.w * Surface.rect.h * (Surface.bpp >> 3));
 }
 
 void AWM_Present(AWM_Surface *Surface)
@@ -223,11 +225,12 @@ AWM_Surface AWM_LoadImage(const char *filename)
         unsigned char *data = stbi_load(filename, &w, &h, &channels, 4);
         if (!data)
         {
-                return (AWM_Surface){0};
+                panic(PANIC_FILE_NOT_FOUND);
         }
 
         AWM_Surface surface = AWM_NewSurface(w, h, 32);
         uint32_t *dst = (uint32_t*)surface.back;
+        surface.front = AWM_New((surface.bpp >> 3) * w * h);
         for (int i = 0; i < w * h; i++)
         {
                 uint8_t r = data[i*4 + 0];
