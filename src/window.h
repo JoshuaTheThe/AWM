@@ -4,7 +4,6 @@
 
 #include <lib.h>
 #include <surface.h>
-#include <display.h>
 
 #define AWM_DEFAULT_XY (128)
 #define AWM_DEFAULT_WH (256)

@@ -68,4 +68,13 @@ void        AWM_DrawLine(AWM_Surface *Dest, AWM_Colour Colour, size_t X1, size_t
 void        AWM_BlitSurface(AWM_Surface *Dest, AWM_Surface *Source);
 void        AWM_DrawFilledSquircle(AWM_Surface *Surface, AWM_Colour Colour, 
                                    AWM_Rect Rect, float Radius, float Exponent);
+void        AWM_DrawCircleAA(AWM_Surface *Dest, AWM_Colour Colour,
+                             size_t CenterX, size_t CenterY, size_t Radius, int Thickness);
+void        AWM_DrawCircle(AWM_Surface *Dest, AWM_Colour Colour,
+                           size_t CenterX, size_t CenterY, size_t Radius, int Thickness);
+void        AWM_DrawFilledCircleAA(AWM_Surface *Dest, AWM_Colour Colour,
+                                   size_t CenterX, size_t CenterY, size_t Radius);
+void        AWM_DrawFilledCircle(AWM_Surface *Dest, AWM_Colour Colour, 
+                                 size_t CenterX, size_t CenterY, size_t Radius);
+
 #endif

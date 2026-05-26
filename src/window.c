@@ -1,5 +1,6 @@
 
 #include <window.h>
+#include <display.h>
 
 AWM_Window *AWM_NewWindow(const char *const Title, AWM_WindowType Type,
                           size_t X,size_t Y,
@@ -20,6 +21,7 @@ void AWM_DropWindow(AWM_Window *Window)
 {
         if (!Window)
                 return;
+        AWM_DropSurface(Window->Surface);
         AWM_DropWindow(Window->Next);
         AWM_DropWindow(Window->Child);
         drop(Window);
@@ -62,7 +64,7 @@ void AWM_RenderWindow(AWM_Window *Window)
         };
 
         AWM_DrawFilledSquircle(&Window->Surface, 
-                               (AWM_Colour){.rgba_888_w=0x8015151f}, 
+                               (AWM_Colour){.rgba_888_w=0x7015151f}, 
                                shadow_rect, corner_radius, squircle_exp);
         AWM_Rect content_rect =
         {
@@ -73,4 +75,7 @@ void AWM_RenderWindow(AWM_Window *Window)
         };
 
         AWM_DrawRect(&Window->Surface, (AWM_Colour){.rgba_888_w=0x8025252f}, content_rect);
+        AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xfff53130}, 16, 15, 4);
+        AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xfff5f130}, 28, 15, 4);
+        AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xff31f530}, 40, 15, 4);
 }

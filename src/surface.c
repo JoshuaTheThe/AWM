@@ -22,6 +22,236 @@ static uint32_t blend_pixel(uint32_t dst, uint32_t src)
         return (out_a << 24) | (out_r << 16) | (out_g << 8) | out_b;
 }
 
+static uint32_t blend_pixel_alpha(uint32_t dst, uint32_t src, uint8_t alpha)
+{
+        if (alpha == 0) return dst;
+        if (alpha == 255) return src;
+        
+        uint8_t dst_a = (dst >> 24) & 0xFF;
+        uint8_t out_a = alpha + (dst_a * (255 - alpha) / 255);
+        uint8_t src_r = (src >> 16) & 0xFF;
+        uint8_t src_g = (src >> 8) & 0xFF;
+        uint8_t src_b = src & 0xFF;
+        uint8_t dst_r = (dst >> 16) & 0xFF;
+        uint8_t dst_g = (dst >> 8) & 0xFF;
+        uint8_t dst_b = dst & 0xFF;
+        uint8_t out_r = (src_r * alpha + dst_r * (255 - alpha)) / 255;
+        uint8_t out_g = (src_g * alpha + dst_g * (255 - alpha)) / 255;
+        uint8_t out_b = (src_b * alpha + dst_b * (255 - alpha)) / 255;
+        return (out_a << 24) | (out_r << 16) | (out_g << 8) | out_b;
+}
+
+void AWM_DrawFilledCircle(AWM_Surface *Dest, AWM_Colour Colour, 
+                          size_t CenterX, size_t CenterY, size_t Radius)
+{
+        if (!Dest || !Dest->back || Radius == 0)
+                return;
+        
+        int64_t cx = CenterX;
+        int64_t cy = CenterY;
+        int64_t r = Radius;
+        int64_t r2 = r * r;
+        
+        int64_t start_x = MAX(cx - r, 0);
+        int64_t end_x = MIN(cx + r, (int64_t)Dest->rect.w - 1);
+        int64_t start_y = MAX(cy - r, 0);
+        int64_t end_y = MIN(cy + r, (int64_t)Dest->rect.h - 1);
+        
+        uint32_t src_color = Colour.rgba_888_w;
+        uint8_t src_alpha = (src_color >> 24) & 0xFF;
+        
+        for (int64_t y = start_y; y <= end_y; y++)
+        {
+                int64_t dy = y - cy;
+                int64_t dy2 = dy * dy;
+                
+                int64_t dx_max = (int64_t)sqrt((double)(r2 - dy2));
+                int64_t x_start = MAX(cx - dx_max, start_x);
+                int64_t x_end = MIN(cx + dx_max, end_x);
+                
+                if (Dest->bpp == 32)
+                {
+                        uint32_t *row = (uint32_t*)Dest->back;
+                        size_t row_offset = y * Dest->rect.w;
+                        
+                        for (int64_t x = x_start; x <= x_end; x++)
+                        {
+                                if (src_alpha == 255)
+                                        row[row_offset + x] = src_color;
+                                else if (src_alpha > 0)
+                                        row[row_offset + x] = blend_pixel(row[row_offset + x], src_color);
+                        }
+                }
+                else
+                {
+                        for (int64_t x = x_start; x <= x_end; x++)
+                                AWM_DrawPoint(Dest, Colour, x, y);
+                }
+        }
+}
+
+void AWM_DrawFilledCircleAA(AWM_Surface *Dest, AWM_Colour Colour,
+                            size_t CenterX, size_t CenterY, size_t Radius)
+{
+        if (!Dest || !Dest->back || Radius == 0)
+                return;
+        
+        int64_t cx = CenterX;
+        int64_t cy = CenterY;
+        float r = Radius;
+        float r2 = r * r;
+        
+        int64_t start_x = MAX(cx - r - 1, 0);
+        int64_t end_x = MIN(cx + r + 1, (int64_t)Dest->rect.w - 1);
+        int64_t start_y = MAX(cy - r - 1, 0);
+        int64_t end_y = MIN(cy + r + 1, (int64_t)Dest->rect.h - 1);
+        
+        uint32_t src_color = Colour.rgba_888_w;
+        
+        for (int64_t y = start_y; y <= end_y; y++)
+        {
+                float dy = y - cy;
+                float dy2 = dy * dy;
+                
+                for (int64_t x = start_x; x <= end_x; x++)
+                {
+                        float dx = x - cx;
+                        float dist2 = dx * dx + dy2;
+                        
+                        if (dist2 <= r2)
+                        {
+                                AWM_DrawPoint(Dest, Colour, x, y);
+                        }
+                        else if (dist2 <= r2 + r)
+                        {
+                                float alpha = 1.0f - (sqrtf(dist2) - r);
+                                if (alpha > 0)
+                                {
+                                        uint8_t alpha_byte = (uint8_t)(alpha * 255);
+                                        uint32_t blended_color = src_color;
+                                        uint8_t src_a = (src_color >> 24) & 0xFF;
+                                        blended_color = ((src_a * alpha_byte / 255) << 24) |
+                                                        (src_color & 0x00FFFFFF);
+                                        
+                                        if (Dest->bpp == 32)
+                                        {
+                                                uint32_t *pixel = (uint32_t*)Dest->back;
+                                                size_t idx = y * Dest->rect.w + x;
+                                                pixel[idx] = blend_pixel_alpha(pixel[idx], src_color, alpha_byte);
+                                        }
+                                        else
+                                        {
+                                                AWM_Colour blended = Colour;
+                                                blended.rgba_888.a = (src_a * alpha_byte) / 255;
+                                                AWM_DrawPoint(Dest, blended, x, y);
+                                        }
+                                }
+                        }
+                }
+        }
+}
+
+void AWM_DrawCircle(AWM_Surface *Dest, AWM_Colour Colour,
+                    size_t CenterX, size_t CenterY, size_t Radius, int Thickness)
+{
+        if (!Dest || !Dest->back || Radius == 0 || Thickness <= 0)
+                return;
+        
+        int64_t cx = CenterX;
+        int64_t cy = CenterY;
+        int64_t r = Radius;
+        int64_t r_outer = r + Thickness;
+        int64_t r_outer2 = r_outer * r_outer;
+        int64_t r_inner2 = (r > Thickness) ? ((r - Thickness) * (r - Thickness)) : 0;
+        
+        int64_t start_x = MAX(cx - r_outer, 0);
+        int64_t end_x = MIN(cx + r_outer, (int64_t)Dest->rect.w - 1);
+        int64_t start_y = MAX(cy - r_outer, 0);
+        int64_t end_y = MIN(cy + r_outer, (int64_t)Dest->rect.h - 1);
+        
+        for (int64_t y = start_y; y <= end_y; y++)
+        {
+                int64_t dy = y - cy;
+                int64_t dy2 = dy * dy;
+                
+                for (int64_t x = start_x; x <= end_x; x++)
+                {
+                        int64_t dx = x - cx;
+                        int64_t dist2 = dx * dx + dy2;
+                        
+                        if (dist2 <= r_outer2 && dist2 >= r_inner2)
+                        {
+                                AWM_DrawPoint(Dest, Colour, x, y);
+                        }
+                }
+        }
+}
+
+void AWM_DrawCircleAA(AWM_Surface *Dest, AWM_Colour Colour,
+                      size_t CenterX, size_t CenterY, size_t Radius, int Thickness)
+{
+        if (!Dest || !Dest->back || Radius == 0 || Thickness <= 0)
+                return;
+        
+        int64_t cx = CenterX;
+        int64_t cy = CenterY;
+        float r = Radius;
+        float r_outer = r + Thickness;
+        float r_inner = r - Thickness;
+        
+        int64_t start_x = MAX(cx - r_outer - 1, 0);
+        int64_t end_x = MIN(cx + r_outer + 1, (int64_t)Dest->rect.w - 1);
+        int64_t start_y = MAX(cy - r_outer - 1, 0);
+        int64_t end_y = MIN(cy + r_outer + 1, (int64_t)Dest->rect.h - 1);
+        
+        uint32_t src_color = Colour.rgba_888_w;
+        
+        for (int64_t y = start_y; y <= end_y; y++)
+        {
+                float dy = y - cy;
+                float dy2 = dy * dy;
+                
+                for (int64_t x = start_x; x <= end_x; x++)
+                {
+                        float dx = x - cx;
+                        float dist = sqrtf(dx * dx + dy2);
+                        
+                        if (dist >= r_inner && dist <= r_outer)
+                        {
+                                float alpha = 1.0f;
+                                
+                                if (dist < r_inner + 1.0f && r_inner > 0)
+                                        alpha = MIN(alpha, dist - r_inner);
+                                if (dist > r_outer - 1.0f)
+                                        alpha = MIN(alpha, r_outer - dist);
+                                
+                                alpha = MAX(0.0f, MIN(1.0f, alpha));
+                                
+                                if (alpha >= 0.99f)
+                                {
+                                        AWM_DrawPoint(Dest, Colour, x, y);
+                                }
+                                else if (alpha > 0)
+                                {
+                                        uint8_t alpha_byte = (uint8_t)(alpha * 255);
+                                        if (Dest->bpp == 32)
+                                        {
+                                                uint32_t *pixel = (uint32_t*)Dest->back;
+                                                size_t idx = y * Dest->rect.w + x;
+                                                pixel[idx] = blend_pixel_alpha(pixel[idx], src_color, alpha_byte);
+                                        }
+                                        else
+                                        {
+                                                AWM_Colour blended = Colour;
+                                                blended.rgba_888.a = (uint8_t)(((Colour.rgba_888.a & 0xFF) * alpha_byte) / 255);
+                                                AWM_DrawPoint(Dest, blended, x, y);
+                                        }
+                                }
+                        }
+                }
+        }
+}
+
 AWM_Surface AWM_NewSurface(size_t W,size_t H, size_t Bpp)
 {
         void *p = AWM_New(W*H*(Bpp >> 3));

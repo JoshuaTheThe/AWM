@@ -8,6 +8,7 @@
 #include<termios.h>
 #include<unistd.h>
 #include<surface.h>
+#include<window.h>
 
 #define AWM_DEFAULT ((long)-1)
 #define AWM_DEFAULT_VT (1)
@@ -37,6 +38,7 @@ typedef struct
         AWM_Surface    Surface;
         bool           Running;
         AWM_CursorType Cursor;
+        AWM_Window    *Focus;
 } AWM_Display;
 
 typedef enum
