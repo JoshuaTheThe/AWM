@@ -31,8 +31,8 @@ AWM_Display *AWM_OpenDisplay(const char *const Path, const char *const Mouse, co
         ioctl(Display->framefd, FBIOGET_VSCREENINFO, &Display->vinfo);
 
         // map
-        Display->fb = AWM_MMap(NULL, Display->finfo.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, Display->framefd, 0);
-        Display->back = AWM_New(Display->finfo.smem_len);
+        Display->Surface       = AWM_NewSurface(Display->vinfo.xres, Display->vinfo.yres, Display->vinfo.bits_per_pixel);
+        Display->Surface.front = AWM_MMap(NULL, Display->finfo.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, Display->framefd, 0);
 
         // tty
         int flags = fcntl(Display->ttyfd, F_GETFL, 0);
@@ -49,6 +49,20 @@ AWM_Display *AWM_OpenDisplay(const char *const Path, const char *const Mouse, co
         raw.c_cc[VTIME] = 0;
         tcsetattr(Display->ttyfd, TCSANOW, &raw);
 
+        // mouse
+        flags = fcntl(Display->mousefd, F_GETFL, 0);
+        Display->mouse_flags = flags;
+        fcntl(Display->mousefd, F_SETFL, flags | O_NONBLOCK);
+        tcgetattr(Display->mousefd, &Display->orig_termios_mouse);
+        raw = Display->orig_termios_mouse;
+        raw.c_lflag &= ~(ICANON | ECHO);
+        //raw.c_iflag &= ~(IXON | INPCK | ISTRIP);
+        //raw.c_oflag &= ~(OPOST);
+        //raw.c_cflag |= (CS8);
+        raw.c_cc[VMIN]  = 0;
+        raw.c_cc[VTIME] = 0;
+        tcsetattr(Display->mousefd, TCSANOW, &raw);
+
         // so kernel doesn't draw over us
         ioctl(Display->ttyfd, KDSETMODE, KD_GRAPHICS);
         
@@ -63,36 +77,29 @@ AWM_Display *AWM_OpenDisplay(const char *const Path, const char *const Mouse, co
         return Display;
 }
 
-void AWM_FlushTTY(AWM_Display *Display)
-{
-        tcflush(Display->ttyfd, TCIFLUSH);
-}
-
 bool AWM_PollEvent(AWM_Event *Event, AWM_Display *Display)
 {
         int bytes;
-        ioctl(Display->mousefd, FIONREAD, &bytes);
+        char buf[1024] = {0};
+        bytes = read(Display->mousefd, buf, 3);
         if (bytes >= 3)
         {
-                char buf[4] = {0};
-                read(Display->mousefd, buf, 3);
-                if (buf[1] != 0 || buf[2] != 0)
-                {
-                        Display->mouse_b  = buf[0];
-                        Display->mouse_x += buf[1];
-                        Display->mouse_y += buf[2];
-                        Event->Kind = AWM_EV_MOUSE_MOVE;
-                        return true;
-                }
-                else if (buf[0] != Display->mouse_b)
-                {
-                        Display->mouse_b = buf[0];
-                        Event->Kind      = AWM_EV_MOUSE_PRESS;
-                        return true;
-                }
+                Display->mouse_b  = buf[0];
+                Display->mouse_x += buf[1];
+                Display->mouse_y -= buf[2];
+                if (Display->mouse_x < 0)
+                        Display->mouse_x = 0;
+                if (Display->mouse_y < 0)
+                        Display->mouse_y = 0;
+                if (Display->mouse_x >= Display->vinfo.xres)
+                        Display->mouse_x = Display->vinfo.xres - 1;
+                if (Display->mouse_y >= Display->vinfo.yres)
+                        Display->mouse_y = Display->vinfo.yres - 1;
+                Event->Kind = AWM_EV_MOUSE_MOVE;
+                return true;
         }
 
-        char buf[1024] = {0};
+        memset(buf, 0, sizeof(buf));
         bytes = read(Display->ttyfd, &buf, 1023);
         if (bytes >= 0)
         {
@@ -103,6 +110,9 @@ bool AWM_PollEvent(AWM_Event *Event, AWM_Display *Display)
                                 Event->Kind = AWM_EV_QUIT;
                                 return true;
                         }
+                        
+                        Event->Kind = AWM_EV_KEY;
+                        return true;
                 }
         }
 
@@ -114,50 +124,12 @@ void AWM_CloseDisplay(AWM_Display *Display)
         if (!Display)
                 panic(PANIC_NULL);
         ioctl(Display->ttyfd, KDSETMODE, KD_TEXT);
-        AWM_Drop(Display->back, Display->finfo.smem_len);
-        AWM_MUnMap(Display->fb, Display->finfo.smem_len);
+        fcntl(Display->ttyfd, F_SETFL, Display->stdin_flags);
+        tcsetattr(Display->mousefd, TCSANOW, &Display->orig_termios_mouse);
+        tcsetattr(Display->ttyfd, TCSANOW, &Display->orig_termios);
+        AWM_DropSurface(Display->Surface);
         AWM_Close(Display->framefd);
         AWM_Close(Display->mousefd);
-        fcntl(Display->ttyfd, F_SETFL, Display->stdin_flags);
-        tcsetattr(Display->ttyfd, TCSANOW, &Display->orig_termios);
         AWM_Close(Display->ttyfd);
         drop(Display);
 }
-
-void AWM_DrawRect(AWM_Display *Display, AWM_Colour Colour, AWM_Rect Rect)
-{
-        const size_t _my = Rect.y + Rect.h;
-        const size_t _mx = Rect.x + Rect.w;
-        const size_t my  = _my >= Display->vinfo.yres ? Display->vinfo.yres - 1 : _my;
-        const size_t mx  = _mx >= Display->vinfo.xres ? Display->vinfo.xres - 1 : _mx;
-        for (size_t y = Rect.y; y < my; ++y)
-        {
-                const size_t rowOff = y * Display->vinfo.xres;
-                for (size_t x = Rect.x; x <  mx; ++x)
-                {
-                        switch (Display->vinfo.bits_per_pixel)
-                        {
-                                case 32:
-                                        ((int *)Display->back)[x+rowOff] = Colour.rgba_888_w;
-                                        break;
-                                case 24:
-                                        ((char *)Display->back)[x+(rowOff*3)+0] = Colour.rgba_888_24.r;
-                                        ((char *)Display->back)[x+(rowOff*3)+1] = Colour.rgba_888_24.g;
-                                        ((char *)Display->back)[x+(rowOff*3)+2] = Colour.rgba_888_24.b;
-                                        break;
-                                case 16:
-                                        ((short *)Display->back)[x+rowOff] = Colour.rgba_555_w;
-                                        break;
-                                case 8:
-                                        ((char *)Display->back)[x+rowOff] = Colour.palette_256_w;
-                                        break;
-                        }
-                }
-        }
-}
-
-void AWM_Present(AWM_Display *Display)
-{
-        memcpy(Display->fb, Display->back, Display->finfo.smem_len);
-}
-
