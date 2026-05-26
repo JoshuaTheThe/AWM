@@ -2,6 +2,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <surface.h>
+#include <font.h>
 
 static uint32_t blend_pixel(uint32_t dst, uint32_t src)
 {
@@ -539,6 +540,51 @@ void AWM_DrawFilledSquircle(AWM_Surface *Surface, AWM_Colour Colour,
                                         AWM_DrawPoint(Surface, Colour, x, y);
                                 }
                         }
+                }
+        }
+}
+
+void AWM_DrawCharacter(AWM_Surface *Surface, int px, int py, char chr, AWM_Colour fg[4], AWM_Font *font)
+{
+        if (Surface->bpp != 32)
+                return;
+        unsigned int x, y;
+        unsigned int pixels_per_byte, bytes_per_row, bytes_per_char;
+        unsigned int char_offset, row_offset, byte_index, bit_offset;
+        uint32_t bitmap_byte, pixel_value;
+        uint32_t max_val = (1 << font->bpp) - 1;
+        
+        if (!font->font_bitmap)
+                return;
+        if (px >= Surface->rect.w || py >= Surface->rect.h)
+                return;
+        if (chr < font->first_char || chr > font->last_char)
+                chr = ' ';
+
+        pixels_per_byte = 8 / font->bpp;
+        bytes_per_row = (font->char_width + pixels_per_byte - 1) / pixels_per_byte;
+        bytes_per_char = bytes_per_row * font->char_height;
+        char_offset = (chr - font->first_char) * bytes_per_char;
+
+        for (y = 0; y < font->char_height; y++)
+        {
+                if (py + y >= Surface->rect.h)
+                        continue;
+                row_offset = char_offset + y * bytes_per_row;
+                for (x = 0; x < font->char_width; x++)
+                {
+                        if (px + x >= Surface->rect.w)
+                                continue;
+                        byte_index = x / pixels_per_byte;
+                        bit_offset = (pixels_per_byte - 1 - (x % pixels_per_byte)) * font->bpp;
+                        bitmap_byte = font->font_bitmap[row_offset + byte_index];
+                        pixel_value = (bitmap_byte >> bit_offset) & max_val;
+                        if (font->bpp == 4)
+                                pixel_value = pixel_value >> 2;
+                        else
+                                pixel_value = (pixel_value * (4 - 1)) / max_val;
+                        if (pixel_value)
+                                AWM_DrawPoint(Surface, fg[pixel_value], px + x, py + y);
                 }
         }
 }

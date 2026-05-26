@@ -3,6 +3,7 @@
 #define SURFACE_H
 
 #include <lib.h>
+#include <font.h>
 
 #define MIN(a,b) (a > b ? b : a)
 #define MAX(a,b) (a > b ? a : b)
@@ -76,5 +77,6 @@ void        AWM_DrawFilledCircleAA(AWM_Surface *Dest, AWM_Colour Colour,
                                    size_t CenterX, size_t CenterY, size_t Radius);
 void        AWM_DrawFilledCircle(AWM_Surface *Dest, AWM_Colour Colour, 
                                  size_t CenterX, size_t CenterY, size_t Radius);
+void        AWM_DrawCharacter(AWM_Surface *Surface, int px, int py, char chr, AWM_Colour fg[4], AWM_Font *font);
 
 #endif

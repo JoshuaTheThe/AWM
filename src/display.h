@@ -9,6 +9,7 @@
 #include<unistd.h>
 #include<surface.h>
 #include<window.h>
+#include<font.h>
 
 #define AWM_DEFAULT ((long)-1)
 #define AWM_DEFAULT_VT (1)
@@ -39,11 +40,20 @@ typedef struct
         bool           Running;
         AWM_CursorType Cursor;
         AWM_Window    *Focus;
+
+        int drag_start_x, drag_start_y;
+        int resize_start_x, resize_start_y;
+        int resize_start_w, resize_start_h;
+        int is_dragging;
+        int is_resizing;
+
+        AWM_Font *Font;
 } AWM_Display;
 
 typedef enum
 {
         AWM_EV_QUIT,
+        AWM_EV_CLOSE_WINDOW,
         AWM_EV_MOUSE_MOVE,
         AWM_EV_MOUSE_PRESS,
         AWM_EV_KEY,
@@ -55,6 +65,7 @@ typedef struct
         union
         {
                 char Key;
+                AWM_Window *CloseWindow;
         } as;
 } AWM_Event;
 

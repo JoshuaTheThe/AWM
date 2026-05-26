@@ -4,16 +4,18 @@
 
 #include <lib.h>
 #include <surface.h>
+#include <font.h>
 
 #define AWM_DEFAULT_XY (128)
 #define AWM_DEFAULT_WH (256)
-#define AWM_TITLE_LEN  (256)
+#define AWM_TITLE_LEN  (1024)
 #define AWM_TITLE_H    (24)
 
 typedef enum
 {
         AWM_WND_NORMAL,
         AWM_WND_ELEMENT,
+        AWM_WND_TEXT,
 } AWM_WindowType;
 
 typedef struct AWM_Window
@@ -23,6 +25,7 @@ typedef struct AWM_Window
                           *Next,*Prev;
         AWM_Surface        Surface;
         AWM_WindowType     Type;
+        AWM_Font          *Font;
 } AWM_Window;
 
 AWM_Window *AWM_NewWindow(const char *const Title, AWM_WindowType Type,

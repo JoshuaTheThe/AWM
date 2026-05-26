@@ -29,31 +29,42 @@ void AWM_DropWindow(AWM_Window *Window)
 
 void AWM_AttachChildWindow(AWM_Window *Parent, AWM_Window *Child)
 {
-        if (Child)
-        {
-                Child->Parent = Parent;
-        }
-
+        if (!Child)
+                return;
+        if (Child->Parent)
+                AWM_RemoveWindow(Child);
+        Child->Parent = Parent;
         if (Parent)
         {
-                Child->Next   = Parent->Child;
+                Child->Next = Parent->Child;
                 if (Parent->Child)
                         Parent->Child->Prev = Child;
                 Parent->Child = Child;
+                Child->Prev = NULL;
         }
 }
 
 void AWM_RemoveWindow(AWM_Window *Window)
 {
-        if (Window->Next) Window->Next->Prev = Window->Prev;
-        if (Window->Prev) Window->Prev->Next = Window->Next;
+        if (!Window)
+                return;
+        if (Window->Next)
+                Window->Next->Prev = Window->Prev;
+        if (Window->Prev)
+                Window->Prev->Next = Window->Next;
         if (Window->Parent && Window->Parent->Child == Window)
-                Window->Parent->Child = Window->Next ? Window->Next : Window->Prev;
+                Window->Parent->Child = Window->Next;
+        Window->Prev = NULL;
+        Window->Next = NULL;
 }
 
 void AWM_RenderWindow(AWM_Window *Window)
 {
+        if (!Window)
+                return;
+                
         AWM_Clear(&Window->Surface);
+        
         if (Window->Type == AWM_WND_NORMAL)
         {
                 float corner_radius = 25.0f;
@@ -76,15 +87,30 @@ void AWM_RenderWindow(AWM_Window *Window)
                         .h = Window->Surface.rect.h - AWM_TITLE_H - 8
                 };
 
+                AWM_Colour fg[4] = {{.rgba_888_w=0x90a0a0a0},{.rgba_888_w=0xffa0a0a0},{.rgba_888_w=0xffe0e0e0},{.rgba_888_w=0xffffffff}};
+                for (size_t i = 0; Window->Title[i] && i < AWM_TITLE_LEN; ++i)
+                        AWM_DrawCharacter(&Window->Surface, (Window->Font->char_width * i) + 64, 8, Window->Title[i], fg, Window->Font);
                 AWM_DrawRect(&Window->Surface, (AWM_Colour){.rgba_888_w=0x8025252f}, content_rect);
                 AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xfff53130}, 16, 15, 4);
                 AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xfff5f130}, 28, 15, 4);
                 AWM_DrawFilledCircleAA(&Window->Surface, (AWM_Colour){.rgba_888_w=0xff31f530}, 40, 15, 4);
         }
-
-        for (AWM_Window *Child = Window->Child; Child; Child = Child->Next)
+        else if (Window->Type == AWM_WND_TEXT)
         {
-                AWM_RenderWindow(Child);
-                AWM_BlitSurface(&Window->Surface, &Child->Surface);
+                AWM_Colour fg[4] = {{.rgba_888_w=0x90a0a0a0},{.rgba_888_w=0xffa0a0a0},{.rgba_888_w=0xffe0e0e0},{.rgba_888_w=0xffffffff}};
+                for (size_t i = 0; Window->Title[i] && i < AWM_TITLE_LEN; ++i)
+                        AWM_DrawCharacter(&Window->Surface, Window->Font->char_width * i, 8, Window->Title[i], fg, Window->Font);
+        }
+        
+        AWM_Window *last = Window->Child;
+        if (last)
+        {
+                while (last->Next)
+                        last = last->Next;
+                for (AWM_Window *Child = last; Child; Child = Child->Prev)
+                {
+                        AWM_RenderWindow(Child);
+                        AWM_BlitSurface(&Window->Surface, &Child->Surface);
+                }
         }
 }
