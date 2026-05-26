@@ -121,25 +121,9 @@ int main(void)
 
         Display->Font = AWM_LoadFont(AWM_ConfigFetch(Config, "AWM/system-font")->Value);
         Window->Font = Display->Font;
-
         AWM_Present(&Backgr);
         for (size_t i = 0; i < sizeof(Cursor) / sizeof(Cursor[0]); ++i)
                 AWM_Present(&Cursor[i]);
-        
-        for (int i = 0; i < 4; ++i)
-        {
-                AWM_Window *w = AWM_NewWindow("Hello, World!", AWM_WND_NORMAL, i*128, 0, 128, 128, Display->vinfo.bits_per_pixel);
-                w->Font = Display->Font;
-                AWM_Window *t = AWM_NewWindow("This is Some Text", AWM_WND_TEXT, 16, AWM_TITLE_H, 140, 24, Display->vinfo.bits_per_pixel);
-                t->Font = Display->Font;
-                AWM_AttachChildWindow(Window, w);
-                AWM_AttachChildWindow(w, t);
-                AWM_RenderWindow(t);
-                AWM_Present(&t->Surface);
-                AWM_RenderWindow(w);
-                AWM_Present(&w->Surface);
-        }
-
         AWM_RenderWindow(Window);
         AWM_Present(&Window->Surface);
         while (Display->Running)
