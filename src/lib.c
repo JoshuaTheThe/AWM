@@ -26,7 +26,7 @@ void AWM_Drop(void *V, size_t sizeof_T)
 
 void AWM_Panic(size_t code)
 {
-        printf("Panic invoked with code: %lu\n", code);
+        printf("Panic invoked with code: %lu\n", (long unsigned)code);
         abort();
 }
 

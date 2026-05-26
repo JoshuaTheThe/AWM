@@ -5,6 +5,8 @@
 #include<lib.h>
 #include<linux/kd.h>
 #include<linux/vt.h>
+#include<termios.h>
+#include<unistd.h>
 
 #define AWM_DEFAULT ((long)-1)
 #define AWM_DEFAULT_VT (1)
@@ -53,17 +55,17 @@ typedef struct
 {
         struct fb_var_screeninfo vinfo;
         struct fb_fix_screeninfo finfo;
-        int         mouse_x;
-        int         mouse_y;
-        int         mouse_b;
-        int         framefd;
-        int         mousefd;
-        int         ttyfd;
-        int         stdin_flags;
-        int         old_vt;
-        void       *fb;
-        void       *back;
-        bool        Running;
+        int            mouse_x;
+        int            mouse_y;
+        int            mouse_b;
+        int            framefd;
+        int            mousefd;
+        int            ttyfd;
+        int            stdin_flags;
+        struct termios orig_termios;
+        void          *fb;
+        void          *back;
+        bool           Running;
 } AWM_Display;
 
 typedef enum

@@ -34,17 +34,23 @@ AWM_Display *AWM_OpenDisplay(const char *const Path, const char *const Mouse, co
         Display->fb = AWM_MMap(NULL, Display->finfo.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, Display->framefd, 0);
         Display->back = AWM_New(Display->finfo.smem_len);
 
+        // tty
         int flags = fcntl(Display->ttyfd, F_GETFL, 0);
         Display->stdin_flags = flags;
         fcntl(Display->ttyfd, F_SETFL, flags | O_NONBLOCK);
+        struct termios raw;
+        tcgetattr(Display->ttyfd, &Display->orig_termios);
+        raw = Display->orig_termios;
+        raw.c_lflag &= ~(ICANON | ECHO);
+        //raw.c_iflag &= ~(IXON | INPCK | ISTRIP);
+        //raw.c_oflag &= ~(OPOST);
+        //raw.c_cflag |= (CS8);
+        raw.c_cc[VMIN]  = 0;
+        raw.c_cc[VTIME] = 0;
+        tcsetattr(Display->ttyfd, TCSANOW, &raw);
 
         // so kernel doesn't draw over us
-        int vt;
-        ioctl(Display->ttyfd, VT_GETACTIVE, &vt);
-        ioctl(Display->ttyfd, VT_ACTIVATE, vt);
-        ioctl(Display->ttyfd, VT_WAITACTIVE, vt);
         ioctl(Display->ttyfd, KDSETMODE, KD_GRAPHICS);
-        Display->old_vt = vt;
         
         // log
         fprintf(stderr, " [log] Created Display (%p)\n", (void *)Display);
@@ -57,15 +63,20 @@ AWM_Display *AWM_OpenDisplay(const char *const Path, const char *const Mouse, co
         return Display;
 }
 
+void AWM_FlushTTY(AWM_Display *Display)
+{
+        tcflush(Display->ttyfd, TCIFLUSH);
+}
+
 bool AWM_PollEvent(AWM_Event *Event, AWM_Display *Display)
 {
         int bytes;
         ioctl(Display->mousefd, FIONREAD, &bytes);
         if (bytes >= 3)
         {
-                char buf[3];
+                char buf[4] = {0};
                 read(Display->mousefd, buf, 3);
-                if (buf[1] != 0 && buf[2] != 0)
+                if (buf[1] != 0 || buf[2] != 0)
                 {
                         Display->mouse_b  = buf[0];
                         Display->mouse_x += buf[1];
@@ -81,17 +92,18 @@ bool AWM_PollEvent(AWM_Event *Event, AWM_Display *Display)
                 }
         }
 
-        ioctl(Display->ttyfd, FIONREAD, &bytes);
-        if (bytes == 1)
+        char buf[1024] = {0};
+        bytes = read(Display->ttyfd, &buf, 1023);
+        if (bytes >= 0)
         {
-                char buf;
-                read(Display->ttyfd, &buf, 1);
-                if (buf == 'q')
+                for (size_t i = 0; i < sizeof(buf) && buf[i]; ++i)
                 {
-                        Event->Kind = AWM_EV_QUIT;
+                        if (buf[i] == 'q')
+                        {
+                                Event->Kind = AWM_EV_QUIT;
+                                return true;
+                        }
                 }
-
-                return true;
         }
 
         return false;
@@ -102,15 +114,14 @@ void AWM_CloseDisplay(AWM_Display *Display)
         if (!Display)
                 panic(PANIC_NULL);
         ioctl(Display->ttyfd, KDSETMODE, KD_TEXT);
-        ioctl(Display->ttyfd, VT_ACTIVATE, Display->old_vt);
-        ioctl(Display->ttyfd, VT_WAITACTIVE, Display->old_vt);
         AWM_Drop(Display->back, Display->finfo.smem_len);
         AWM_MUnMap(Display->fb, Display->finfo.smem_len);
         AWM_Close(Display->framefd);
         AWM_Close(Display->mousefd);
         fcntl(Display->ttyfd, F_SETFL, Display->stdin_flags);
+        tcsetattr(Display->ttyfd, TCSANOW, &Display->orig_termios);
         AWM_Close(Display->ttyfd);
-        AWM_Drop(Display);
+        drop(Display);
 }
 
 void AWM_DrawRect(AWM_Display *Display, AWM_Colour Colour, AWM_Rect Rect)
@@ -130,9 +141,9 @@ void AWM_DrawRect(AWM_Display *Display, AWM_Colour Colour, AWM_Rect Rect)
                                         ((int *)Display->back)[x+rowOff] = Colour.rgba_888_w;
                                         break;
                                 case 24:
-                                        ((char *)Display->back)[x+rowOff+0] = Colour.rgba_888_24.r;
-                                        ((char *)Display->back)[x+rowOff+1] = Colour.rgba_888_24.g;
-                                        ((char *)Display->back)[x+rowOff+2] = Colour.rgba_888_24.b;
+                                        ((char *)Display->back)[x+(rowOff*3)+0] = Colour.rgba_888_24.r;
+                                        ((char *)Display->back)[x+(rowOff*3)+1] = Colour.rgba_888_24.g;
+                                        ((char *)Display->back)[x+(rowOff*3)+2] = Colour.rgba_888_24.b;
                                         break;
                                 case 16:
                                         ((short *)Display->back)[x+rowOff] = Colour.rgba_555_w;
